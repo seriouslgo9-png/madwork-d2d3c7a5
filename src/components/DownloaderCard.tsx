@@ -12,6 +12,12 @@ import {
   Video,
   Zap,
 } from "lucide-react";
+import {
+  downloadToDevice,
+  fetchVideoInfo,
+  formatDuration,
+  isBackendConfigured,
+} from "@/lib/download-api";
 
 type Format = "mp4" | "mp3";
 type VideoQuality = "144p" | "360p" | "720p" | "1080p" | "Best Available";
@@ -61,13 +67,14 @@ export function DownloaderCard({ onComplete }: Props) {
   const [url, setUrl] = useState("");
   const [fetching, setFetching] = useState(false);
   const [video, setVideo] = useState<VideoDetails | null>(null);
+  const [durationSec, setDurationSec] = useState(247);
   const [format, setFormat] = useState<Format>("mp4");
   const [videoQ, setVideoQ] = useState<VideoQuality>("1080p");
   const [audioQ, setAudioQ] = useState<AudioBitrate>("320kbps");
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const durationSec = 247; // demo duration
+  const liveBackend = isBackendConfigured();
 
   const handleFetch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -78,17 +85,39 @@ export function DownloaderCard({ onComplete }: Props) {
     }
     setFetching(true);
     setVideo(null);
-    // Simulated detail fetch (real extraction can't run in this edge runtime).
-    await new Promise((r) => setTimeout(r, 1200));
-    setVideo({
-      id,
-      title: "Cinematic 4K — Neon City After Midnight",
-      thumbnail: `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
-      duration: "4:07",
-      channel: "Neon Visuals",
-    });
-    setFetching(false);
-    toast.success("Video details loaded");
+
+    try {
+      if (liveBackend) {
+        const info = await fetchVideoInfo(url.trim());
+        setDurationSec(info.duration);
+        setVideo({
+          id: info.id,
+          title: info.title,
+          thumbnail: info.thumbnail || `https://i.ytimg.com/vi/${info.id}/maxresdefault.jpg`,
+          duration: formatDuration(info.duration),
+          channel: info.channel || "",
+        });
+        toast.success("Video details loaded");
+      } else {
+        await new Promise((r) => setTimeout(r, 1200));
+        setDurationSec(247);
+        setVideo({
+          id,
+          title: "Cinematic 4K — Neon City After Midnight",
+          thumbnail: `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
+          duration: "4:07",
+          channel: "Neon Visuals (demo)",
+        });
+        toast.success("Demo details loaded", {
+          description: "Set VITE_DOWNLOAD_API to enable real downloads.",
+        });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to fetch";
+      toast.error("Could not load video", { description: msg });
+    } finally {
+      setFetching(false);
+    }
   };
 
   const handlePaste = async () => {
@@ -111,18 +140,46 @@ export function DownloaderCard({ onComplete }: Props) {
     if (!video) return;
     setDownloading(true);
     setProgress(0);
-    // Simulate progress
-    for (let i = 1; i <= 100; i += 4) {
-      await new Promise((r) => setTimeout(r, 60));
-      setProgress(i);
-    }
-    setDownloading(false);
     const q = format === "mp4" ? videoQ : audioQ;
-    toast.success("Download complete (demo)", {
-      description: `${video.title} — ${format.toUpperCase()} • ${q}`,
-    });
-    onComplete({ title: video.title, thumbnail: video.thumbnail, format: format.toUpperCase(), quality: q });
-    setProgress(0);
+
+    try {
+      if (liveBackend) {
+        const qualityMap: Record<VideoQuality, "144p" | "360p" | "720p" | "1080p" | "best"> = {
+          "144p": "144p", "360p": "360p", "720p": "720p", "1080p": "1080p", "Best Available": "best",
+        };
+        const bitrateMap: Record<AudioBitrate, "128" | "192" | "320"> = {
+          "128kbps": "128", "192kbps": "192", "320kbps": "320",
+        };
+        const filename = await downloadToDevice({
+          url,
+          format,
+          quality: qualityMap[videoQ],
+          bitrate: format === "mp3" ? bitrateMap[audioQ] : undefined,
+          onProgress: (loaded, total) => {
+            if (total) setProgress(Math.min(99, Math.round((loaded / total) * 100)));
+            else setProgress((p) => Math.min(95, p + 1));
+          },
+        });
+        setProgress(100);
+        toast.success("Saved to your device", { description: filename });
+      } else {
+        // Demo simulation
+        for (let i = 1; i <= 100; i += 4) {
+          await new Promise((r) => setTimeout(r, 60));
+          setProgress(i);
+        }
+        toast.success("Download complete (demo)", {
+          description: `${video.title} — ${format.toUpperCase()} • ${q}`,
+        });
+      }
+      onComplete({ title: video.title, thumbnail: video.thumbnail, format: format.toUpperCase(), quality: q });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Download failed";
+      toast.error("Download failed", { description: msg });
+    } finally {
+      setDownloading(false);
+      setProgress(0);
+    }
   };
 
   const selectedQuality = format === "mp4" ? videoQ : audioQ;
