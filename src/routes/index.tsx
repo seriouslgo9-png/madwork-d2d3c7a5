@@ -7,6 +7,7 @@ import { ParticleBackground } from "@/components/ParticleBackground";
 import { Marquee } from "@/components/Marquee";
 import { DownloaderCard } from "@/components/DownloaderCard";
 import { RecentDownloads, type RecentItem } from "@/components/RecentDownloads";
+import { isBackendConfigured } from "@/lib/download-api";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -82,8 +83,8 @@ function Index() {
             transition={{ duration: 0.6 }}
             className="glass mx-auto mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs uppercase tracking-[0.3em] text-muted-foreground"
           >
-            <span className="size-2 animate-pulse rounded-full bg-[var(--neon-pink)]" />
-            Demo Build · Simulated Downloads
+            <span className={`size-2 animate-pulse rounded-full ${isBackendConfigured() ? "bg-[var(--neon-blue)]" : "bg-[var(--neon-pink)]"}`} />
+            {isBackendConfigured() ? "Live Backend Connected" : "Demo Mode · Configure VITE_DOWNLOAD_API"}
           </motion.div>
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
