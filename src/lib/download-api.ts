@@ -87,7 +87,7 @@ export async function downloadToDevice(opts: DownloadOpts): Promise<string> {
     opts.onProgress?.(loaded, total);
   }
 
-  const blob = new Blob(chunks, {
+  const blob = new Blob(chunks as BlobPart[], {
     type: opts.format === "mp3" ? "audio/mpeg" : "video/mp4",
   });
 
