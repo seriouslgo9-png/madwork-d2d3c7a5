@@ -108,9 +108,7 @@ export function DownloaderCard({ onComplete }: Props) {
           duration: "4:07",
           channel: "Neon Visuals (demo)",
         });
-        toast.success("Demo details loaded", {
-          description: "Set VITE_DOWNLOAD_API to enable real downloads.",
-        });
+        toast.success("Demo details loaded");
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to fetch";
@@ -163,7 +161,7 @@ export function DownloaderCard({ onComplete }: Props) {
         setProgress(100);
         toast.success("Saved to your device", { description: filename });
       } else {
-        // Demo simulation
+        // Fallback simulation
         for (let i = 1; i <= 100; i += 4) {
           await new Promise((r) => setTimeout(r, 60));
           setProgress(i);
