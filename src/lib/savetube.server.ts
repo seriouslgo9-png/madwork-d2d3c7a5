@@ -29,10 +29,17 @@ export const downloadInputSchema = z.object({
 });
 
 export function getVideoId(url: string): string | null {
-  const match = url.match(
-    /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
-  );
-  return match?.[1] ?? null;
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+    if (host === "youtu.be") return parsed.pathname.split("/").filter(Boolean)[0] ?? null;
+    if (!host.endsWith("youtube.com")) return null;
+    if (parsed.pathname === "/watch") return parsed.searchParams.get("v");
+    const match = parsed.pathname.match(/^\/(?:embed|shorts|live)\/([a-zA-Z0-9_-]{11})/);
+    return match?.[1] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getVideoInfo(url: string) {
