@@ -1,0 +1,20 @@
+## Netlify config for NeonTube (TanStack Start + Nitro)
+## Lovable's default build targets Cloudflare. Setting NITRO_PRESET switches
+## the same build to Netlify Functions so /api/info and /api/download keep
+## working server-side after deploy.
+
+[build]
+  command = "npm run build"
+  publish = "dist/client"
+
+[build.environment]
+  NITRO_PRESET = "netlify"
+  NODE_VERSION = "20"
+
+## TanStack Start emits a Netlify Function handler — route everything through it
+## so server routes (/api/*) and SSR navigations all resolve correctly.
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/server"
+  status = 200
+  force = false
