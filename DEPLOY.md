@@ -1,0 +1,71 @@
+# Deploying NeonTube
+
+The app is **cross-platform** in two senses already:
+
+1. **Browser** — works on any modern desktop or mobile browser (Chrome, Safari, Firefox, Edge).
+2. **Server runtime** — the `/api/info` and `/api/download` routes are written against the Web `fetch` standard, so they run on Cloudflare Workers, Netlify Functions, Vercel Edge, Node servers, and Deno without code changes.
+
+---
+
+## Easiest: publish on Lovable (Cloudflare) — one click
+
+Click **Publish** in the top-right of the editor. Server routes deploy automatically. Nothing to configure.
+
+---
+
+## Netlify
+
+A `netlify.toml` is already in the repo. It tells Netlify to:
+- Run `npm run build`
+- Publish `dist/client` as the static asset folder
+- Switch the Nitro server build to the `netlify` preset (Netlify Functions)
+- Route every request through the generated server function so `/api/*` works
+
+### Steps
+
+1. Push this project to GitHub (or connect your Lovable repo directly to Netlify).
+2. On Netlify: **Add new site → Import from Git → pick this repo**.
+3. Leave the build settings empty — `netlify.toml` provides everything.
+4. Click **Deploy**.
+
+### If your previous Netlify deploy errored
+
+The previous failure was almost certainly one of these:
+
+| Error | Cause | Fix |
+|---|---|---|
+| `Function bundle failed` / `worker not supported` | Build was targeting Cloudflare (`workerd`), Netlify can't run that bundle | `NITRO_PRESET=netlify` in `netlify.toml` ✅ already set |
+| `Page not found` on every route except `/` | Missing SPA/SSR redirect | The catch-all redirect is in `netlify.toml` ✅ |
+| `Module not found` during build | Wrong Node version | `NODE_VERSION=20` in `netlify.toml` ✅ |
+| `404` on `/api/info` after deploy | API routes weren't wired to the server function | The redirect routes `/*` to the function ✅ |
+
+If it still fails, copy the **last 30 lines of the Netlify build log** into the chat and I'll patch it.
+
+---
+
+## Vercel
+
+Add a `vercel.json` or just set the env var in the Vercel dashboard:
+
+```
+NITRO_PRESET = vercel
+```
+
+No other config needed — Vercel auto-detects the build.
+
+---
+
+## Self-host on a Node server (VPS, Docker, Render, Railway, Fly.io)
+
+```bash
+NITRO_PRESET=node-server npm run build
+node .output/server/index.mjs
+```
+
+Listens on `PORT` (default 3000).
+
+---
+
+## Why downloads work without your own backend
+
+`/api/download` calls a public conversion provider server-side and returns a signed CDN URL. The browser then triggers a normal `<a download>` click, so the file lands in the user's Downloads folder with the real video title — same behavior on Windows, macOS, Linux, iOS, and Android.
