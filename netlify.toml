@@ -1,20 +1,12 @@
 ## Netlify config for NeonTube (TanStack Start + Nitro)
-## Lovable's default build targets Cloudflare. Setting NITRO_PRESET switches
-## the same build to Netlify Functions so /api/info and /api/download keep
-## working server-side after deploy.
+## With NITRO_PRESET=netlify, Nitro builds a Netlify Function AND writes
+## its own _redirects into .output/public. Do NOT add a manual catch-all
+## redirect or override the publish dir — that's what caused the 404.
 
 [build]
   command = "npm run build"
-  publish = "dist/client"
+  publish = ".output/public"
 
 [build.environment]
   NITRO_PRESET = "netlify"
   NODE_VERSION = "20"
-
-## TanStack Start emits a Netlify Function handler — route everything through it
-## so server routes (/api/*) and SSR navigations all resolve correctly.
-[[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/server"
-  status = 200
-  force = false
